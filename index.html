@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1B2631">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>ARA - Anaesthetics Residents App</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#f8fafc;-webkit-tap-highlight-color:transparent}
+.install-banner{display:none;position:fixed;top:0;left:0;right:0;background:#1A5276;color:#fff;
+padding:10px 16px;font-size:12px;z-index:1000;text-align:center}
+.install-banner button{background:#E67E22;color:#fff;border:none;padding:4px 12px;border-radius:12px;
+font-weight:700;font-size:11px;margin-left:8px;cursor:pointer}
+.install-banner .close{background:none;color:#fff;font-size:16px;position:absolute;right:12px;top:8px;cursor:pointer;border:none}
+</style>
+</head>
+<body>
+<div id="install-banner" class="install-banner">
+Add to Home Screen for the best experience
+<button id="install-btn">Install</button>
+<button class="close" id="install-close">&times;</button>
+</div>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(){});}
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;
+document.getElementById('install-banner').style.display='block';});
+document.getElementById('install-btn').addEventListener('click',function(){
+if(deferredPrompt){deferredPrompt.prompt();deferredPrompt=null;}
+document.getElementById('install-banner').style.display='none';});
+document.getElementById('install-close').addEventListener('click',function(){
+document.getElementById('install-banner').style.display='none';});
+function saveData(key,val){try{localStorage.setItem('nddh_'+key,JSON.stringify(val));}catch(e){}}
+function loadData(key,fb){try{var d=localStorage.getItem('nddh_'+key);return d?JSON.parse(d):fb;}catch(e){return fb;}}
+window.saveData=saveData;window.loadData=loadData;
+</script>
+<script type="text/babel">
+const {useState,useMemo,useCallback,useEffect}=React;
+const h=React.createElement;
+const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const SHIFT_CYCLE={"":"N",N:"LD",LD:"HLD",HLD:"D",D:""};
+const DISPLAY={N:"N",LD:"LD",HLD:"\u00bdLD",D:"D"};
+
+const DEFAULT_508=[
+{name:"Katy",ann:true,contract:2021,spa:1.5,mgmt:0.5,al:32,weeks:[[null,null,null,null,null,null,null],["D",null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["D","D","D",null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,"D","D","D",null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null]]},
+{name:"Emil",ann:true,contract:2008,spa:1.5,mgmt:0.5,al:34,weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["D","D","LD","LD",null,null,null],["LD","LD",null,"D","N","N","N"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,"D","N","N",null,null,null],["D",null,"D","D","D",null,null],["D",null,"D","D","D",null,null],["N","N",null,null,"LD","LD","LD"]]},
+{name:"Eze",ann:true,contract:2008,spa:1.5,mgmt:0.0,al:34,weeks:[["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],[null,null,"LD","LD","N","N","N"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null]]},
+{name:"Balazs",ann:true,contract:2008,spa:1.0,mgmt:0.0,al:34,weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,"LD","LD","LD"],["LD","LD",null,null,null,null,null],["LD","LD","D","D","N","N","N"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null]]},
+{name:"Mo",ann:true,contract:2021,spa:1.5,mgmt:0.5,al:33,weeks:[[null,null,null,null,null,null,null],["D","D","D",null,"D",null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,"D","N","N",null,null,null],[null,null,null,null,null,null,null],[null,"D","LD","LD",null,null,null],["LD","LD",null,"D","N","N","N"],[null,null,null,null,null,null,null]]},
+{name:"Taryn",ann:true,contract:2008,spa:1.5,mgmt:0.5,al:32,weeks:[["D","D","D",null,"D",null,null],["N","N",null,null,"LD","LD","LD"],[null,"D","N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["D","D","LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null]]},
+{name:"Ro",ann:true,contract:2021,spa:1.5,mgmt:0.25,al:32,weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["N","N","N","N",null,null,null],[null,null,"D","D","D",null,null],["D",null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,"N","N",null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,"D","D","D",null,null]]},
+{name:"Nish",ann:false,contract:2021,spa:1.5,mgmt:0.0,al:32,weeks:[[null,null,"N","N",null,null,null],[null,"D","D","D","D",null,null],["D",null,"D","D","D",null,null],["D","D","D",null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["D",null,"D","D","D",null,null],["N","N",null,null,"LD","LD","LD"],[null,"D","LD","LD",null,null,null],["LD","LD",null,"D","N","N","N"]]},
+{name:"RichJ",ann:false,contract:2021,spa:1.5,mgmt:0.0,al:32,weeks:[["LD","LD",null,"D","N","N","N"],[null,null,"N","N",null,null,null],[null,null,"D","D","D",null,null],["D","D",null,null,"D",null,null],["N","N",null,null,"LD","LD","LD"],[null,null,"D","D","D",null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["D","D","D",null,"D",null,null],["D","D","LD","LD",null,null,null]]},
+{name:"Matt",ann:false,contract:2008,spa:1.5,mgmt:0.0,al:34,weeks:[["D","D","LD","LD",null,null,null],["LD","LD",null,"D","N","N","N"],[null,null,null,null,null,null,null],[null,"D","D","D","D",null,null],["D","D","N","N",null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,"D","D","D",null,null],["D","D",null,null,null,null,null],[null,null,null,null,null,null,null],["D","D","D",null,"D",null,null]]}
+];
+
+const DEFAULT_822=[
+{name:"Alex Edmonds",weeks:[[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null]]},
+{name:"Alex Koffman",weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"]]},
+{name:"Sam",weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null]]},
+{name:"Pip",weeks:[[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null]]},
+{name:"Ruth",weeks:[[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"]]},
+{name:"Ollie",weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null]]},
+{name:"Martin",isMartin:true,weeks:[["D",null,null,"D",null,null,null],[null,"D",null,null,"D",null,null],["D",null,"HLD","HLD",null,null,null],["HLD","HLD",null,"D",null,null,null],[null,"D",null,"D",null,null,null],["D",null,"D",null,"HLD","LD","LD"],[null,null,null,null,"D",null,null],[null,"D",null,null,null,null,null],[null,null,"D",null,null,null,null],[null,null,null,null,null,null,null]]},
+{name:"Busra",weeks:[[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null]]},
+{name:"Toby",weeks:[["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null]]},
+{name:"Tom",weeks:[["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null]]}
+];
+
+const DEFAULT_MC={ann:false,contract:2008,spa:1.5,mgmt:0.0,al:34};
+const PA_RATES={ldWeekday:[(11/4)+(1.5/3),12.5/4],ldWeekend:[12.5/3,12.5/3],halfLdWeekday:[(6/4)+(1.5/3),7.5/4],nMonThu:[(11/3)+(1.5/4),(10/3)+(2.5/4)],nFri:[12.5/3,(11.5/3)+(1/4)],nSat:[12.5/3,12.5/3],nSun:[(11/3)+(1.5/4),(11/3)+(1.5/4)],elective:[10/4,10/4]};
+function getL2P(bl){return 52/(52-((bl/5)+(18/5)));}
+function getRate(t,c){return PA_RATES[t][c===2008?0:1];}
+
+function countShifts(w){
+let o={N:0,LD:0,HLD:0,D:0,ldWeekday:0,ldWeekend:0,halfLdWeekday:0,nMonThu:0,nFri:0,nSat:0,nSun:0};
+w.forEach(wk=>wk.forEach((s,di)=>{if(!s)return;o[s]=(o[s]||0)+1;
+if(s==="LD"){di<=4?o.ldWeekday++:o.ldWeekend++;}
+if(s==="HLD"){o.halfLdWeekday++;}
+if(s==="N"){if(di<=3)o.nMonThu++;else if(di===4)o.nFri++;else if(di===5)o.nSat++;else o.nSun++;}
+}));return o;}
+
+function calcJobPlan(p,bl){
+const L=getL2P(bl),c=p.contract,cn=countShifts(p.weeks);
+const em=(cn.halfLdWeekday*getRate("halfLdWeekday",c)+cn.ldWeekday*getRate("ldWeekday",c)+cn.ldWeekend*getRate("ldWeekend",c)+cn.nMonThu*getRate("nMonThu",c)+cn.nFri*getRate("nFri",c)+cn.nSat*getRate("nSat",c)+cn.nSun*getRate("nSun",c))/10*L;
+const el=p.ann?(cn.D/10)*getRate("elective",c)*L:(cn.D/10)*getRate("elective",c);
+const tp=em+el+p.spa+p.mgmt;
+const edy=p.ann?(cn.D/10)*52:((cn.D/10)*getRate("elective",c)*(52-((bl/5)+(18/5))))/2.5;
+const pra=tp>=10?p.al:p.al*tp/10;
+const adj=Math.max(0,edy-(p.al-32)*(pra/p.al));
+return{counts:cn,totalPAs:tp,electDaysYr:edy,proRataAL:pra,adjTarget:adj};}
+
+const COLORS={N:{bg:"#2C3E6B",fg:"#fff",fw:700},LD:{bg:"#E67E22",fg:"#fff",fw:700},HLD:{bg:"#F0B27A",fg:"#5B3000",fw:700},D:{bg:"#7DCEA0",fg:"#1B4F28",fw:500},OFF:{bg:"#f0f1f3",fg:"#bcc0c7",fw:400}};
+function sc(s){const c=COLORS[s]||COLORS.OFF;return{backgroundColor:c.bg,color:c.fg,fontWeight:c.fw};}
+
+function ShiftCell({value,onChange}){
+return h("button",{onClick:function(){onChange(SHIFT_CYCLE[value||""]);},
+style:{width:32,height:26,fontSize:9,border:"1px solid rgba(0,0,0,0.08)",borderRadius:4,
+display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",
+...sc(value),padding:0,fontFamily:"'DM Sans',sans-serif",lineHeight:1}},
+value?(DISPLAY[value]||value):"\u00b7");}
+
+function SASTag(){return h("span",{style:{fontSize:9,color:"#5DADE2",marginLeft:6,fontWeight:600,backgroundColor:"#EBF5FB",padding:"1px 5px",borderRadius:8}},"SAS");}
+function RotaGrid({people,onShiftChange,showSAS}){
+const[exp,setExp]=useState(null);
+return h("div",{style:{padding:"0 4px"}},
+people.map(function(p,pi){
+var open=exp===pi,cn=countShifts(p.weeks),hasH=cn.HLD>0;
+var badges=[["N",cn.N],["LD",cn.LD]];
+if(hasH)badges.push(["HLD",cn.HLD]);
+badges.push(["D",cn.D]);
+var isSAS=showSAS||p.isMartin;
+return h("div",{key:pi,style:{marginBottom:6,borderRadius:8,overflow:"hidden",
+backgroundColor:pi%2===0?"#fff":"#f7fafd",border:"1px solid #e2e8f0"}},
+h("div",{onClick:function(){setExp(open?null:pi);},style:{padding:"10px 12px",display:"flex",
+justifyContent:"space-between",alignItems:"center",cursor:"pointer",
+borderBottom:open?"1px solid #e2e8f0":"none"}},
+h("div",null,
+h("span",{style:{fontWeight:700,fontSize:14,color:"#1a202c"}},p.name),
+isSAS&&h(SASTag),
+h("div",{style:{display:"flex",gap:5,marginTop:4,flexWrap:"wrap"}},
+badges.map(function(b){return h("span",{key:b[0],style:{...sc(b[0]),fontSize:10,
+padding:"1px 6px",borderRadius:10,fontWeight:600,lineHeight:"16px"}},(DISPLAY[b[0]]||b[0])+":"+b[1]);}))),
+h("span",{style:{fontSize:18,color:"#94a3b8",transform:open?"rotate(180deg)":"none",
+transition:"0.2s"}},"\u25BE")),
+open&&h("div",{style:{padding:"8px 6px",overflowX:"auto"}},
+h("div",{style:{display:"grid",gridTemplateColumns:"28px repeat(7,1fr)",gap:2,minWidth:300}},
+h("div"),
+...DAYS.map(function(d){return h("div",{key:d,style:{textAlign:"center",fontSize:10,fontWeight:600,color:"#64748b",padding:"2px 0"}},d);}),
+...p.weeks.flatMap(function(wk,wi){return[
+h("div",{key:"w"+wi,style:{fontSize:10,color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:600}},wi+1),
+...wk.map(function(s,di){return h(ShiftCell,{key:wi+"-"+di,value:s,onChange:function(v){onShiftChange(pi,wi,di,v||null);}});})];}))));
+}));}
+
+function SummaryTable({people,baselineAL,showJobPlan,showHalfLD}){
+var data=people.map(function(p){return p.contract!==undefined?{...p,...calcJobPlan(p,baselineAL)}:{...p,counts:countShifts(p.weeks),totalPAs:null};});
+var jp=showJobPlan&&data.length>0&&data[0].totalPAs!==null;
+var hd=showHalfLD;
+var hdrs=["Name","N","LD"].concat(hd?["\u00bdLD"]:[]).concat(["D"]).concat(jp?["PAs/wk","Days/yr","Adj"]:["Tot"]);
+return h("div",{style:{overflowX:"auto",padding:"0 4px"}},
+h("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}},
+h("thead",null,h("tr",{style:{backgroundColor:"#1B2631"}},
+hdrs.map(function(hdr){return h("th",{key:hdr,style:{color:"#fff",padding:"6px 4px",fontWeight:600,fontSize:10,textAlign:"center",whiteSpace:"nowrap"}},hdr);}))),
+h("tbody",null,data.map(function(p,i){var cn=p.counts;
+return h("tr",{key:i,style:{backgroundColor:i%2===0?"#fff":"#f8fafc",borderBottom:"1px solid #e2e8f0"}},
+h("td",{style:{padding:"6px 8px",fontWeight:600,fontSize:11,color:"#1a202c",whiteSpace:"nowrap"}},p.name),
+h("td",{style:{textAlign:"center",...sc("N"),padding:"4px 6px"}},cn.N),
+h("td",{style:{textAlign:"center",...sc("LD"),padding:"4px 6px"}},cn.LD),
+hd&&h("td",{style:{textAlign:"center",...sc("HLD"),padding:"4px 6px"}},cn.HLD),
+h("td",{style:{textAlign:"center",...sc("D"),padding:"4px 6px"}},cn.D),
+jp?h(React.Fragment,null,
+h("td",{style:{textAlign:"center",padding:"4px 6px",fontWeight:700,color:"#1A5276"}},p.totalPAs.toFixed(1)),
+h("td",{style:{textAlign:"center",padding:"4px 6px",color:"#475569"}},p.electDaysYr.toFixed(0)),
+h("td",{style:{textAlign:"center",padding:"4px 6px",color:"#475569"}},p.adjTarget.toFixed(0))):
+h("td",{style:{textAlign:"center",padding:"4px 6px",color:"#475569",fontWeight:600}},cn.N+cn.LD+cn.HLD+cn.D));}))));}
+function Guidelines(){
+var guides=[
+{title:"Obstetric Anaesthesia Guide",tag:"DRAFT",tagBg:"#FDEDEC",tagFg:"#922B21",
+desc:"NDDH guide for anaesthetic trainees \u2013 2025 edition",href:"guide-obstetric.html",icon:"\uD83C\uDFE5"},
+{title:"Preoperative Sedation",tag:"NDHT",tagBg:"#EBF5FB",tagFg:"#1A5276",
+desc:"Sedative premedication guideline for adults and paediatrics",href:"guide-preop-sedation.html",icon:"\uD83D\uDC8A"}
+];
+return h("div",{style:{padding:"0 4px"}},
+h("div",{style:{fontSize:11,color:"#64748b",marginBottom:12,padding:"0 4px"}},"Tap a guideline to open it. Use the back arrow to return."),
+guides.map(function(g,i){return h("a",{key:i,href:g.href,style:{display:"block",textDecoration:"none",
+marginBottom:8,padding:"14px 14px",backgroundColor:"#fff",borderRadius:10,border:"1px solid #e2e8f0"}},
+h("div",{style:{display:"flex",alignItems:"flex-start",gap:12}},
+h("div",{style:{fontSize:28,lineHeight:1}},g.icon),
+h("div",{style:{flex:1}},
+h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}},
+h("span",{style:{fontWeight:700,fontSize:14,color:"#1a202c"}},g.title),
+h("span",{style:{fontSize:9,fontWeight:600,backgroundColor:g.tagBg,color:g.tagFg,padding:"1px 6px",borderRadius:8}},g.tag)),
+h("div",{style:{fontSize:12,color:"#64748b",lineHeight:1.4}},g.desc))));}));}
+
+function BleepsCodes(){
+var codes=[
+{label:"Paramedics Door",value:"1984"},{label:"ITU",value:"5432"},
+{label:"Recovery",value:"1970"},{label:"Pool Room",value:"TBA"},
+{label:"Epidural Level 1",value:"700"},{label:"Epidural Level 2",value:"279"},
+{label:"PCA Pump",value:"xxx"}
+];
+var bleeps=[
+{label:"Surgeon",value:"900"},{label:"Blood Bank",value:"xxx"},
+{label:"ODP",value:"119"},{label:"ITU",value:"504"},{label:"Consultant",value:"300"}
+];
+function Section({title,items,icon,color}){
+return h("div",{style:{marginBottom:20}},
+h("div",{style:{fontSize:13,fontWeight:700,color:color,marginBottom:8,padding:"0 4px"}},icon+" "+title),
+items.map(function(item,i){return h("div",{key:i,style:{display:"flex",justifyContent:"space-between",
+alignItems:"center",padding:"10px 14px",backgroundColor:i%2===0?"#fff":"#f8fafc",
+borderRadius:i===0?"8px 8px 0 0":i===items.length-1?"0 0 8px 8px":"0",
+border:"1px solid #e2e8f0",borderTop:i>0?"none":"1px solid #e2e8f0"}},
+h("span",{style:{fontSize:13,fontWeight:600,color:"#1a202c"}},item.label),
+h("span",{style:{fontSize:15,fontWeight:700,
+color:item.value==="xxx"||item.value==="TBA"?"#E74C3C":"#1A5276",
+fontFamily:"monospace",letterSpacing:"0.05em"}},item.value));}));}
+return h("div",{style:{padding:"0 4px"}},
+h(Section,{title:"Door Codes",items:codes,icon:"\uD83D\uDEAA",color:"#1A5276"}),
+h(Section,{title:"Bleeps",items:bleeps,icon:"\uD83D\uDCDF",color:"#E67E22"}),
+h("div",{style:{fontSize:10,color:"#94a3b8",textAlign:"center",marginTop:8,fontStyle:"italic"}},"xxx / TBA = to be confirmed"));}
+function PersonConfig({person,onChange}){
+var ss={padding:"4px 6px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontWeight:600,color:"#0000FF",backgroundColor:"#FEF9E7"};
+var ns={...ss,width:50,textAlign:"center"};
+function Lbl({text,children}){return h("label",{style:{fontSize:11,color:"#64748b",display:"flex",alignItems:"center",gap:4}},text," ",children);}
+return h("div",{style:{padding:"8px 10px",marginBottom:4,backgroundColor:"#fff",borderRadius:8,border:"1px solid #e2e8f0"}},
+h("div",{style:{fontWeight:700,fontSize:13,color:"#1a202c",marginBottom:4}},person.name),
+h("div",{style:{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}},
+h(Lbl,{text:"Ann?"},h("select",{value:person.ann?"Yes":"No",onChange:function(e){onChange("ann",e.target.value==="Yes");},style:ss},h("option",null,"Yes"),h("option",null,"No"))),
+h(Lbl,{text:"Contract"},h("select",{value:person.contract,onChange:function(e){onChange("contract",Number(e.target.value));},style:ss},h("option",{value:2008},"2008"),h("option",{value:2021},"2021"))),
+h(Lbl,{text:"SPA"},h("input",{type:"number",step:"0.5",value:person.spa,onChange:function(e){onChange("spa",Number(e.target.value));},style:ns})),
+h(Lbl,{text:"Mgmt"},h("input",{type:"number",step:"0.25",value:person.mgmt,onChange:function(e){onChange("mgmt",Number(e.target.value));},style:ns})),
+h(Lbl,{text:"AL"},h("select",{value:person.al,onChange:function(e){onChange("al",Number(e.target.value));},style:ss},[27,32,33,34].map(function(v){return h("option",{key:v,value:v},v);})))));}
+
+function ConfigPanel({people,onUpdate,martinConfig,onMartinUpdate,baselineAL,onBLChange,onReset}){
+return h("div",{style:{padding:"0 4px"}},
+h("div",{style:{marginBottom:16,padding:12,backgroundColor:"#FEF9E7",borderRadius:8,border:"1px solid #F9E79F"}},
+h("div",{style:{fontSize:12,fontWeight:700,color:"#7D6608",marginBottom:6}},"Baseline Annual Leave"),
+h("div",{style:{display:"flex",alignItems:"center",gap:8}},
+h("span",{style:{fontSize:12,color:"#7D6608"}},"Rota designed for:"),
+h("input",{type:"number",value:baselineAL,onChange:function(e){onBLChange(Number(e.target.value));},
+style:{width:50,padding:"4px 8px",borderRadius:6,border:"1px solid #F9E79F",fontSize:13,fontWeight:700,textAlign:"center",color:"#0000FF"}}),
+h("span",{style:{fontSize:12,color:"#7D6608"}},"days"))),
+h("div",{style:{fontSize:12,fontWeight:700,color:"#1A5276",marginBottom:8}},"508 Staff"),
+...people.map(function(p,i){return h(PersonConfig,{key:i,person:p,onChange:function(f,v){onUpdate(i,f,v);}});}),
+h("div",{style:{fontSize:12,fontWeight:700,color:"#1A5276",marginBottom:8,marginTop:16}},"822 Staff"),
+h(PersonConfig,{person:{name:"Martin",...martinConfig},onChange:function(f,v){onMartinUpdate(f,v);}}),
+h("div",{style:{marginTop:24,textAlign:"center"}},
+h("button",{onClick:onReset,style:{padding:"8px 24px",borderRadius:8,border:"2px solid #E74C3C",
+backgroundColor:"#fff",color:"#E74C3C",fontWeight:700,fontSize:12,cursor:"pointer"}},"Reset All to Defaults")));}
+function App(){
+var[tab,setTab]=useState("bleeps");
+var[view,setView]=useState("rota");
+var[p508,setP508]=useState(function(){return window.loadData("p508",DEFAULT_508);});
+var[p822,setP822]=useState(function(){return window.loadData("p822",DEFAULT_822);});
+var[mc,setMc]=useState(function(){return window.loadData("mc",DEFAULT_MC);});
+var[bl,setBl]=useState(function(){return window.loadData("bl",32);});
+
+useEffect(function(){window.saveData("p508",p508);},[p508]);
+useEffect(function(){window.saveData("p822",p822);},[p822]);
+useEffect(function(){window.saveData("mc",mc);},[mc]);
+useEffect(function(){window.saveData("bl",bl);},[bl]);
+
+var hsc508=useCallback(function(pi,wi,di,v){setP508(function(pr){return pr.map(function(p,i){return i!==pi?p:
+{...p,weeks:p.weeks.map(function(w,j){return j!==wi?w:w.map(function(s,k){return k!==di?s:v;});})};});});},[]);
+var hsc822=useCallback(function(pi,wi,di,v){setP822(function(pr){return pr.map(function(p,i){return i!==pi?p:
+{...p,weeks:p.weeks.map(function(w,j){return j!==wi?w:w.map(function(s,k){return k!==di?s:v;});})};});});},[]);
+var hcu=useCallback(function(pi,f,v){setP508(function(pr){return pr.map(function(p,i){return i!==pi?p:{...p,[f]:v};});});},[]);
+var hmcu=useCallback(function(f,v){setMc(function(pr){return{...pr,[f]:v};});},[]);
+var handleReset=useCallback(function(){
+if(window.confirm("Reset everything to defaults? Your changes will be lost.")){
+setP508(DEFAULT_508);setP822(DEFAULT_822);setMc(DEFAULT_MC);setBl(32);}},[]);
+
+var p822wc=useMemo(function(){return p822.map(function(p){return p.isMartin?{...p,...mc}:p;});},[p822,mc]);
+var mArr=useMemo(function(){var m=p822wc.find(function(p){return p.isMartin;});return m?[m]:[];},[p822wc]);
+var nm822=useMemo(function(){return p822.filter(function(p){return!p.isMartin;});},[p822]);
+
+var tabs=[
+{id:"bleeps",label:"Bleeps",color:"#27AE60"},
+{id:"guides",label:"Guides",color:"#8E44AD"},
+{id:"508",label:"508",color:"#E67E22"},
+{id:"822",label:"822",color:"#2C3E6B"},
+{id:"config",label:"Config",color:"#5DADE2"}
+];
+var hasViews=tab==="508"||tab==="822";
+
+return h("div",{style:{maxWidth:480,margin:"0 auto",backgroundColor:"#f8fafc",minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}},
+h("div",{style:{background:"linear-gradient(135deg,#1B2631 0%,#2C3E6B 100%)",padding:"16px 16px 12px",color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+h("div",null,
+h("div",{style:{fontSize:18,fontWeight:700,letterSpacing:"-0.02em"}},"ARA"),
+h("div",{style:{fontSize:12,color:"#94a3b8",fontWeight:500}},"Anaesthetics Residents App \u2013 NDDH")),
+h("svg",{width:38,height:38,viewBox:"0 0 100 100"},
+h("circle",{cx:50,cy:50,r:44,fill:"none",stroke:"#E67E22",strokeWidth:5}),
+h("circle",{cx:50,cy:50,r:28,fill:"#E67E22"}),
+h("rect",{x:44,y:3,width:12,height:4,rx:1,fill:"#27AE60"}),
+h("rect",{x:47,y:0,width:6,height:10,rx:1,fill:"#27AE60"}),
+h("text",{x:50,y:56,textAnchor:"middle",fill:"#fff",fontSize:22,fontWeight:700,fontFamily:"'DM Sans',sans-serif"},"ARA"))),
+
+h("div",{style:{display:"flex",backgroundColor:"#fff",borderBottom:"1px solid #e2e8f0",padding:"0 2px"}},
+tabs.map(function(t){return h("button",{key:t.id,onClick:function(){setTab(t.id);setView("rota");},
+style:{flex:1,padding:"10px 4px",border:"none",backgroundColor:"transparent",
+borderBottom:tab===t.id?"3px solid "+t.color:"3px solid transparent",
+color:tab===t.id?t.color:"#94a3b8",fontWeight:700,fontSize:11,cursor:"pointer",
+transition:"all 0.2s",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap"}},t.label);})),
+
+hasViews&&h("div",{style:{display:"flex",gap:4,padding:"8px 8px 4px",justifyContent:"center"}},
+[{id:"rota",label:"Rota"},{id:"summary",label:"Summary"}].map(function(v){
+return h("button",{key:v.id,onClick:function(){setView(v.id);},
+style:{padding:"4px 20px",borderRadius:16,border:"1px solid #e2e8f0",
+backgroundColor:view===v.id?"#1B2631":"#fff",color:view===v.id?"#fff":"#64748b",
+fontWeight:600,fontSize:12,cursor:"pointer",transition:"all 0.2s"}},v.label);})),
+
+h("div",{style:{padding:"8px 4px 80px"}},
+tab==="508"&&view==="rota"&&h(RotaGrid,{people:p508,onShiftChange:hsc508,showSAS:true}),
+tab==="508"&&view==="summary"&&h(SummaryTable,{people:p508,baselineAL:bl,showJobPlan:true,showHalfLD:false}),
+tab==="822"&&view==="rota"&&h(RotaGrid,{people:p822wc,onShiftChange:hsc822,showSAS:false}),
+tab==="822"&&view==="summary"&&h(React.Fragment,null,
+h(SummaryTable,{people:nm822,baselineAL:bl,showJobPlan:false,showHalfLD:false}),
+h("div",{style:{fontSize:12,fontWeight:700,color:"#1A5276",margin:"12px 4px 6px"}},"\u2014 Martin \u2014 Job Plan"),
+h(SummaryTable,{people:mArr,baselineAL:bl,showJobPlan:true,showHalfLD:true})),
+tab==="guides"&&h(Guidelines),
+tab==="bleeps"&&h(BleepsCodes),
+tab==="config"&&h(ConfigPanel,{people:p508,onUpdate:hcu,martinConfig:mc,
+onMartinUpdate:hmcu,baselineAL:bl,onBLChange:setBl,onReset:handleReset})),
+
+h("div",{style:{position:"fixed",bottom:0,left:0,right:0,backgroundColor:"#fff",
+borderTop:"1px solid #e2e8f0",padding:"6px 12px",display:"flex",justifyContent:"center",gap:8,minHeight:32,alignItems:"center"}},
+(tab==="508"||tab==="822")?
+[["N","Night"],["LD","Long Day"],["HLD","\u00bdLD"],["D","Day"]].map(function(x){
+return h("div",{key:x[0],style:{display:"flex",alignItems:"center",gap:3}},
+h("div",{style:{width:14,height:14,borderRadius:3,...sc(x[0])}}),
+h("span",{style:{fontSize:9,color:"#64748b",fontWeight:500}},x[1]));})
+:h("span",{style:{fontSize:10,color:"#94a3b8",fontStyle:"italic"}},
+tab==="bleeps"?"If the bleep doesn\u2019t work, shout louder":
+tab==="guides"?"Read the guideline before the patient reads your face":
+tab==="config"?"With great PAs comes great responsibility":
+"ARA \u2013 NDDH Anaesthetics")));}
+
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+</script>
+</body>
+</html>
