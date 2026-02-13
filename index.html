@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1B2631">
+<title>NDDH Anaesthetics Rota</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTkRESCBSb3RhIiwic2hvcnRfbmFtZSI6IlJvdGEiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzFCMjYzMSIsInRoZW1lX2NvbG9yIjoiIzFCMjYzMSJ9">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#f8fafc;-webkit-tap-highlight-color:transparent}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script type="text/babel">
+const {useState,useMemo,useCallback} = React;
+
+const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const SHIFT_CYCLE={"":"N",N:"LD",LD:"HLD",HLD:"D",D:""};
+const DISPLAY={N:"N",LD:"LD",HLD:"\u00bdLD",D:"D"};
+
+const INITIAL_508=[
+{name:"Katy",ann:true,contract:2021,spa:1.5,mgmt:0.5,al:32,weeks:[[null,null,null,null,null,null,null],["D",null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["D","D","D",null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,"D","D","D",null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null]]},
+{name:"Emil",ann:true,contract:2008,spa:1.5,mgmt:0.5,al:34,weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["D","D","LD","LD",null,null,null],["LD","LD",null,"D","N","N","N"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,"D","N","N",null,null,null],["D",null,"D","D","D",null,null],["D",null,"D","D","D",null,null],["N","N",null,null,"LD","LD","LD"]]},
+{name:"Eze",ann:true,contract:2008,spa:1.5,mgmt:0.0,al:34,weeks:[["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],[null,null,"LD","LD","N","N","N"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null]]},
+{name:"Balazs",ann:true,contract:2008,spa:1.0,mgmt:0.0,al:34,weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,"LD","LD","LD"],["LD","LD",null,null,null,null,null],["LD","LD","D","D","N","N","N"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null]]},
+{name:"Mo",ann:true,contract:2021,spa:1.5,mgmt:0.5,al:33,weeks:[[null,null,null,null,null,null,null],["D","D","D",null,"D",null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,"D","N","N",null,null,null],[null,null,null,null,null,null,null],[null,"D","LD","LD",null,null,null],["LD","LD",null,"D","N","N","N"],[null,null,null,null,null,null,null]]},
+{name:"Taryn",ann:true,contract:2008,spa:1.5,mgmt:0.5,al:32,weeks:[["D","D","D",null,"D",null,null],["N","N",null,null,"LD","LD","LD"],[null,"D","N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["D","D","LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null]]},
+{name:"Ro",ann:true,contract:2021,spa:1.5,mgmt:0.25,al:32,weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["N","N","N","N",null,null,null],[null,null,"D","D","D",null,null],["D",null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,"N","N",null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,"D","D","D",null,null]]},
+{name:"Nish",ann:false,contract:2021,spa:1.5,mgmt:0.0,al:32,weeks:[[null,null,"N","N",null,null,null],[null,"D","D","D","D",null,null],["D",null,"D","D","D",null,null],["D","D","D",null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["D",null,"D","D","D",null,null],["N","N",null,null,"LD","LD","LD"],[null,"D","LD","LD",null,null,null],["LD","LD",null,"D","N","N","N"]]},
+{name:"RichJ",ann:false,contract:2021,spa:1.5,mgmt:0.0,al:32,weeks:[["LD","LD",null,"D","N","N","N"],[null,null,"N","N",null,null,null],[null,null,"D","D","D",null,null],["D","D",null,null,"D",null,null],["N","N",null,null,"LD","LD","LD"],[null,null,"D","D","D",null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],["D","D","D",null,"D",null,null],["D","D","LD","LD",null,null,null]]},
+{name:"Matt",ann:false,contract:2008,spa:1.5,mgmt:0.0,al:34,weeks:[["D","D","LD","LD",null,null,null],["LD","LD",null,"D","N","N","N"],[null,null,null,null,null,null,null],[null,"D","D","D","D",null,null],["D","D","N","N",null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,"D","D","D",null,null],["D","D",null,null,null,null,null],[null,null,null,null,null,null,null],["D","D","D",null,"D",null,null]]}
+];
+
+const INITIAL_822=[
+{name:"aF3 / Alex",weeks:[[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null]]},
+{name:"bSHO1 / AK",weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"]]},
+{name:"cSpR / Sam",weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null]]},
+{name:"dF6 / Pip",weeks:[[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null]]},
+{name:"eF2 / Ruth",weeks:[[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"]]},
+{name:"fSHO2 / OIC",weeks:[[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null]]},
+{name:"Martin",isMartin:true,weeks:[["D",null,null,"D",null,null,null],[null,"D",null,null,"D",null,null],["D",null,"HLD","HLD",null,null,null],["HLD","HLD",null,"D",null,null,null],[null,"D",null,"D",null,null,null],["D",null,"D",null,"HLD","LD","LD"],[null,null,null,null,"D",null,null],[null,"D",null,null,null,null,null],[null,null,"D",null,null,null,null],[null,null,null,null,null,null,null]]},
+{name:"hF4 / Busra",weeks:[[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null]]},
+{name:"iF5 / Toby",weeks:[["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null],["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null]]},
+{name:"jF1 / Tom",weeks:[["N","N",null,null,"LD","LD","LD"],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"N","N",null,null,null],[null,null,null,null,null,null,null],[null,null,null,null,null,null,null],[null,null,"LD","LD",null,null,null],["LD","LD",null,null,"N","N","N"],[null,null,null,null,null,null,null]]}
+];
+
+const MARTIN_CONFIG={ann:false,contract:2008,spa:1.5,mgmt:0.0,al:34};
+
+const PA_RATES={
+ldWeekday:[(11/4)+(1.5/3),12.5/4],ldWeekend:[12.5/3,12.5/3],
+halfLdWeekday:[(6/4)+(1.5/3),7.5/4],
+nMonThu:[(11/3)+(1.5/4),(10/3)+(2.5/4)],nFri:[12.5/3,(11.5/3)+(1/4)],
+nSat:[12.5/3,12.5/3],nSun:[(11/3)+(1.5/4),(11/3)+(1.5/4)],
+elective:[10/4,10/4]
+};
+
+function getL2P(bl){return 52/(52-((bl/5)+(18/5)));}
+function getRate(t,c){return PA_RATES[t][c===2008?0:1];}
+
+function countShifts(w){
+let o={N:0,LD:0,HLD:0,D:0,ldWeekday:0,ldWeekend:0,halfLdWeekday:0,nMonThu:0,nFri:0,nSat:0,nSun:0};
+w.forEach(wk=>wk.forEach((s,di)=>{
+if(!s)return;o[s]=(o[s]||0)+1;
+if(s==="LD"){di<=4?o.ldWeekday++:o.ldWeekend++;}
+if(s==="HLD"){o.halfLdWeekday++;}
+if(s==="N"){if(di<=3)o.nMonThu++;else if(di===4)o.nFri++;else if(di===5)o.nSat++;else o.nSun++;}
+}));return o;
+}
+
+function calcJobPlan(p,bl){
+const L=getL2P(bl),c=p.contract,cn=countShifts(p.weeks);
+const em=(cn.halfLdWeekday*getRate("halfLdWeekday",c)+cn.ldWeekday*getRate("ldWeekday",c)+cn.ldWeekend*getRate("ldWeekend",c)+cn.nMonThu*getRate("nMonThu",c)+cn.nFri*getRate("nFri",c)+cn.nSat*getRate("nSat",c)+cn.nSun*getRate("nSun",c))/10*L;
+const el=p.ann?(cn.D/10)*getRate("elective",c)*L:(cn.D/10)*getRate("elective",c);
+const tp=em+el+p.spa+p.mgmt;
+const edy=p.ann?(cn.D/10)*52:((cn.D/10)*getRate("elective",c)*(52-((bl/5)+(18/5))))/2.5;
+const pra=tp>=10?p.al:p.al*tp/10;
+const adj=Math.max(0,edy-(p.al-32)*(pra/p.al));
+const tl=!p.ann?((cn.D/10)*getRate("elective",c)*((bl/5)+(18/5)))/2.5:null;
+return{counts:cn,totalPAs:tp,electDaysYr:edy,proRataAL:pra,adjTarget:adj,totalLeave:tl};
+}
+
+function calcCover(pp,st,wk,di){return pp.reduce((s,p)=>s+((p.weeks[wk]&&p.weeks[wk][di]===st)?1:0),0);}
+
+const COLORS={N:{bg:"#2C3E6B",fg:"#fff",fw:700},LD:{bg:"#E67E22",fg:"#fff",fw:700},HLD:{bg:"#F0B27A",fg:"#5B3000",fw:700},D:{bg:"#7DCEA0",fg:"#1B4F28",fw:500},OFF:{bg:"#f0f1f3",fg:"#bcc0c7",fw:400}};
+function shiftColor(s){const c=COLORS[s]||COLORS.OFF;return{backgroundColor:c.bg,color:c.fg,fontWeight:c.fw};}
+
+function ShiftCell({value,onChange}){
+const st=shiftColor(value);
+return React.createElement("button",{onClick:()=>onChange(SHIFT_CYCLE[value||""]),
+style:{width:32,height:26,fontSize:9,border:"1px solid rgba(0,0,0,0.08)",borderRadius:4,
+display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",
+...st,padding:0,fontFamily:"'DM Sans',sans-serif",lineHeight:1}},
+value?(DISPLAY[value]||value):"\u00b7");
+}
+
+function RotaGrid({people,onShiftChange}){
+const[exp,setExp]=useState(null);
+return React.createElement("div",{style:{padding:"0 4px"}},
+people.map((p,pi)=>{
+const open=exp===pi,cn=countShifts(p.weeks),hasH=cn.HLD>0;
+const badges=[["N",cn.N],["LD",cn.LD]];
+if(hasH)badges.push(["HLD",cn.HLD]);
+badges.push(["D",cn.D]);
+return React.createElement("div",{key:pi,style:{marginBottom:6,borderRadius:8,overflow:"hidden",
+backgroundColor:pi%2===0?"#fff":"#f7fafd",border:"1px solid #e2e8f0"}},
+React.createElement("div",{onClick:()=>setExp(open?null:pi),style:{padding:"10px 12px",display:"flex",
+justifyContent:"space-between",alignItems:"center",cursor:"pointer",
+borderBottom:open?"1px solid #e2e8f0":"none"}},
+React.createElement("div",null,
+React.createElement("span",{style:{fontWeight:700,fontSize:14,color:"#1a202c"}},p.name),
+p.isMartin&&React.createElement("span",{style:{fontSize:9,color:"#5DADE2",marginLeft:6,fontWeight:600,
+backgroundColor:"#EBF5FB",padding:"1px 5px",borderRadius:8}},"SAS"),
+React.createElement("div",{style:{display:"flex",gap:5,marginTop:4,flexWrap:"wrap"}},
+badges.map(([t,c])=>React.createElement("span",{key:t,style:{...shiftColor(t),fontSize:10,
+padding:"1px 6px",borderRadius:10,fontWeight:600,lineHeight:"16px"}},(DISPLAY[t]||t)+":"+c)))),
+React.createElement("span",{style:{fontSize:18,color:"#94a3b8",transform:open?"rotate(180deg)":"none",
+transition:"0.2s"}},"\u25BE")),
+open&&React.createElement("div",{style:{padding:"8px 6px",overflowX:"auto"}},
+React.createElement("div",{style:{display:"grid",gridTemplateColumns:"28px repeat(7,1fr)",gap:2,minWidth:300}},
+React.createElement("div"),
+...DAYS.map(d=>React.createElement("div",{key:d,style:{textAlign:"center",fontSize:10,fontWeight:600,
+color:"#64748b",padding:"2px 0"}},d)),
+...p.weeks.flatMap((wk,wi)=>[
+React.createElement("div",{key:"w"+wi,style:{fontSize:10,color:"#94a3b8",display:"flex",
+alignItems:"center",justifyContent:"center",fontWeight:600}},wi+1),
+...wk.map((s,di)=>React.createElement(ShiftCell,{key:wi+"-"+di,value:s,
+onChange:v=>onShiftChange(pi,wi,di,v||null)}))]))));
+}));
+}
+
+function SummaryTable({people,baselineAL,showJobPlan,showHalfLD}){
+const data=people.map(p=>p.contract!==undefined?{...p,...calcJobPlan(p,baselineAL)}:
+{...p,counts:countShifts(p.weeks),totalPAs:null});
+const jp=showJobPlan&&data.length>0&&data[0].totalPAs!==null;
+const hd=showHalfLD;
+const hdrs=["Name","N","LD",...(hd?["\u00bdLD"]:[]),"D",...(jp?["PAs/wk","Days/yr","Adj"]:["Tot"])];
+return React.createElement("div",{style:{overflowX:"auto",padding:"0 4px"}},
+React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}},
+React.createElement("thead",null,React.createElement("tr",{style:{backgroundColor:"#1B2631"}},
+hdrs.map(h=>React.createElement("th",{key:h,style:{color:"#fff",padding:"6px 4px",fontWeight:600,
+fontSize:10,textAlign:"center",whiteSpace:"nowrap"}},h)))),
+React.createElement("tbody",null,data.map((p,i)=>{
+const cn=p.counts;
+return React.createElement("tr",{key:i,style:{backgroundColor:i%2===0?"#fff":"#f8fafc",
+borderBottom:"1px solid #e2e8f0"}},
+React.createElement("td",{style:{padding:"6px 8px",fontWeight:600,fontSize:11,color:"#1a202c",
+whiteSpace:"nowrap"}},p.name),
+React.createElement("td",{style:{textAlign:"center",...shiftColor("N"),padding:"4px 6px"}},cn.N),
+React.createElement("td",{style:{textAlign:"center",...shiftColor("LD"),padding:"4px 6px"}},cn.LD),
+hd&&React.createElement("td",{style:{textAlign:"center",...shiftColor("HLD"),padding:"4px 6px"}},cn.HLD),
+React.createElement("td",{style:{textAlign:"center",...shiftColor("D"),padding:"4px 6px"}},cn.D),
+jp?React.createElement(React.Fragment,null,
+React.createElement("td",{style:{textAlign:"center",padding:"4px 6px",fontWeight:700,color:"#1A5276"}},
+p.totalPAs.toFixed(1)),
+React.createElement("td",{style:{textAlign:"center",padding:"4px 6px",color:"#475569"}},
+p.electDaysYr.toFixed(0)),
+React.createElement("td",{style:{textAlign:"center",padding:"4px 6px",color:"#475569"}},
+p.adjTarget.toFixed(0))):
+React.createElement("td",{style:{textAlign:"center",padding:"4px 6px",color:"#475569",fontWeight:600}},
+cn.N+cn.LD+cn.HLD+cn.D));
+}))));
+}
+
+function CoverGrid({people508,people822}){
+const[sel,setSel]=useState("N");
+const all=[...people508,...people822];
+function Grid({label,pp}){
+return React.createElement("div",{style:{marginBottom:16}},
+React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#475569",marginBottom:4}},label),
+React.createElement("div",{style:{display:"grid",gridTemplateColumns:"32px repeat(7,1fr)",gap:2}},
+React.createElement("div",{style:{fontSize:10,color:"#94a3b8",fontWeight:600}},"Wk"),
+...DAYS.map(d=>React.createElement("div",{key:d,style:{textAlign:"center",fontSize:10,fontWeight:600,
+color:"#64748b"}},d)),
+...Array.from({length:10}).flatMap((_,wk)=>[
+React.createElement("div",{key:"w"+wk,style:{fontSize:10,color:"#94a3b8",display:"flex",
+alignItems:"center",justifyContent:"center"}},wk+1),
+...DAYS.map((_,di)=>{const c=calcCover(pp,sel,wk,di);
+return React.createElement("div",{key:wk+"-"+di,style:{textAlign:"center",fontSize:12,fontWeight:700,
+padding:"4px 0",borderRadius:4,
+backgroundColor:c===0?"#fecaca":c===1?"#fef3c7":"#d1fae5",
+color:c===0?"#991b1b":c===1?"#92400e":"#065f46"}},c);})])));
+}
+return React.createElement("div",{style:{padding:"0 4px"}},
+React.createElement("div",{style:{display:"flex",gap:6,marginBottom:12,justifyContent:"center"}},
+["N","LD","D"].map(s=>React.createElement("button",{key:s,onClick:()=>setSel(s),
+style:{padding:"6px 16px",borderRadius:20,border:"2px solid",
+borderColor:sel===s?COLORS[s].bg:"#e2e8f0",
+backgroundColor:sel===s?COLORS[s].bg:"#fff",
+color:sel===s?(s==="D"?"#1B4F28":"#fff"):"#64748b",
+fontWeight:700,fontSize:13,cursor:"pointer",transition:"all 0.2s"}},s))),
+React.createElement(Grid,{label:"508",pp:people508}),
+React.createElement(Grid,{label:"822",pp:people822}),
+React.createElement(Grid,{label:"Combined",pp:all}));
+}
+
+function PersonConfig({person,onChange}){
+const ss={padding:"4px 6px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,
+fontWeight:600,color:"#0000FF",backgroundColor:"#FEF9E7"};
+const ns={...ss,width:50,textAlign:"center"};
+function Lbl({text,children}){
+return React.createElement("label",{style:{fontSize:11,color:"#64748b",display:"flex",
+alignItems:"center",gap:4}},text," ",children);
+}
+return React.createElement("div",{style:{padding:"8px 10px",marginBottom:4,backgroundColor:"#fff",
+borderRadius:8,border:"1px solid #e2e8f0"}},
+React.createElement("div",{style:{fontWeight:700,fontSize:13,color:"#1a202c",marginBottom:4}},person.name),
+React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}},
+React.createElement(Lbl,{text:"Ann?"},React.createElement("select",{value:person.ann?"Yes":"No",
+onChange:e=>onChange("ann",e.target.value==="Yes"),style:ss},
+React.createElement("option",null,"Yes"),React.createElement("option",null,"No"))),
+React.createElement(Lbl,{text:"Contract"},React.createElement("select",{value:person.contract,
+onChange:e=>onChange("contract",Number(e.target.value)),style:ss},
+React.createElement("option",{value:2008},"2008"),React.createElement("option",{value:2021},"2021"))),
+React.createElement(Lbl,{text:"SPA"},React.createElement("input",{type:"number",step:"0.5",
+value:person.spa,onChange:e=>onChange("spa",Number(e.target.value)),style:ns})),
+React.createElement(Lbl,{text:"Mgmt"},React.createElement("input",{type:"number",step:"0.25",
+value:person.mgmt,onChange:e=>onChange("mgmt",Number(e.target.value)),style:ns})),
+React.createElement(Lbl,{text:"AL"},React.createElement("select",{value:person.al,
+onChange:e=>onChange("al",Number(e.target.value)),style:ss},
+[27,32,33,34].map(v=>React.createElement("option",{key:v,value:v},v))))));
+}
+
+function ConfigPanel({people,onUpdate,martinConfig,onMartinUpdate,baselineAL,onBLChange}){
+return React.createElement("div",{style:{padding:"0 4px"}},
+React.createElement("div",{style:{marginBottom:16,padding:12,backgroundColor:"#FEF9E7",
+borderRadius:8,border:"1px solid #F9E79F"}},
+React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#7D6608",marginBottom:6}},
+"Baseline Annual Leave"),
+React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
+React.createElement("span",{style:{fontSize:12,color:"#7D6608"}},"Rota designed for:"),
+React.createElement("input",{type:"number",value:baselineAL,onChange:e=>onBLChange(Number(e.target.value)),
+style:{width:50,padding:"4px 8px",borderRadius:6,border:"1px solid #F9E79F",fontSize:13,
+fontWeight:700,textAlign:"center",color:"#0000FF"}}),
+React.createElement("span",{style:{fontSize:12,color:"#7D6608"}},"days"))),
+React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#1A5276",marginBottom:8}},"508 Staff"),
+...people.map((p,i)=>React.createElement(PersonConfig,{key:i,person:p,
+onChange:(f,v)=>onUpdate(i,f,v)})),
+React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#1A5276",marginBottom:8,
+marginTop:16}},"822 Staff (Martin)"),
+React.createElement(PersonConfig,{person:{name:"Martin",...martinConfig},
+onChange:(f,v)=>onMartinUpdate(f,v)}));
+}
+
+function App(){
+const[tab,setTab]=useState("508");
+const[view,setView]=useState("rota");
+const[p508,setP508]=useState(INITIAL_508);
+const[p822,setP822]=useState(INITIAL_822);
+const[mc,setMc]=useState(MARTIN_CONFIG);
+const[bl,setBl]=useState(32);
+
+const hsc508=useCallback((pi,wi,di,v)=>setP508(pr=>pr.map((p,i)=>i!==pi?p:
+{...p,weeks:p.weeks.map((w,j)=>j!==wi?w:w.map((s,k)=>k!==di?s:v))})),[]);
+const hsc822=useCallback((pi,wi,di,v)=>setP822(pr=>pr.map((p,i)=>i!==pi?p:
+{...p,weeks:p.weeks.map((w,j)=>j!==wi?w:w.map((s,k)=>k!==di?s:v))})),[]);
+const hcu=useCallback((pi,f,v)=>setP508(pr=>pr.map((p,i)=>i!==pi?p:{...p,[f]:v})),[]);
+const hmcu=useCallback((f,v)=>setMc(pr=>({...pr,[f]:v})),[]);
+
+const p822wc=useMemo(()=>p822.map(p=>p.isMartin?{...p,...mc}:p),[p822,mc]);
+const mArr=useMemo(()=>{const m=p822wc.find(p=>p.isMartin);return m?[m]:[];},[p822wc]);
+const nm822=useMemo(()=>p822.filter(p=>!p.isMartin),[p822]);
+
+const tabs=[{id:"508",label:"508",color:"#E67E22"},{id:"822",label:"822",color:"#2C3E6B"},
+{id:"cover",label:"Cover",color:"#27AE60"},{id:"config",label:"Config",color:"#5DADE2"}];
+const hasViews=tab==="508"||tab==="822";
+
+return React.createElement("div",{style:{maxWidth:480,margin:"0 auto",backgroundColor:"#f8fafc",
+minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}},
+React.createElement("div",{style:{background:"linear-gradient(135deg,#1B2631 0%,#2C3E6B 100%)",
+padding:"16px 16px 12px",color:"#fff"}},
+React.createElement("div",{style:{fontSize:18,fontWeight:700,letterSpacing:"-0.02em"}},
+"NDDH Anaesthetics"),
+React.createElement("div",{style:{fontSize:12,color:"#94a3b8",fontWeight:500}},
+"10-Week Rota Manager")),
+React.createElement("div",{style:{display:"flex",backgroundColor:"#fff",
+borderBottom:"1px solid #e2e8f0",padding:"0 4px"}},
+tabs.map(t=>React.createElement("button",{key:t.id,onClick:()=>{setTab(t.id);setView("rota");},
+style:{flex:1,padding:"10px 0",border:"none",backgroundColor:"transparent",
+borderBottom:tab===t.id?"3px solid "+t.color:"3px solid transparent",
+color:tab===t.id?t.color:"#94a3b8",fontWeight:700,fontSize:13,cursor:"pointer",
+transition:"all 0.2s",fontFamily:"'DM Sans',sans-serif"}},t.label))),
+hasViews&&React.createElement("div",{style:{display:"flex",gap:4,padding:"8px 8px 4px",
+justifyContent:"center"}},
+[{id:"rota",label:"Rota"},{id:"summary",label:"Summary"}].map(v=>
+React.createElement("button",{key:v.id,onClick:()=>setView(v.id),
+style:{padding:"4px 20px",borderRadius:16,border:"1px solid #e2e8f0",
+backgroundColor:view===v.id?"#1B2631":"#fff",color:view===v.id?"#fff":"#64748b",
+fontWeight:600,fontSize:12,cursor:"pointer",transition:"all 0.2s"}},v.label))),
+React.createElement("div",{style:{padding:"8px 4px 80px"}},
+tab==="508"&&view==="rota"&&React.createElement(RotaGrid,{people:p508,onShiftChange:hsc508}),
+tab==="508"&&view==="summary"&&React.createElement(SummaryTable,{people:p508,baselineAL:bl,
+showJobPlan:true,showHalfLD:false}),
+tab==="822"&&view==="rota"&&React.createElement(RotaGrid,{people:p822wc,onShiftChange:hsc822}),
+tab==="822"&&view==="summary"&&React.createElement(React.Fragment,null,
+React.createElement(SummaryTable,{people:nm822,baselineAL:bl,showJobPlan:false,showHalfLD:false}),
+React.createElement("div",{style:{fontSize:12,fontWeight:700,color:"#1A5276",
+margin:"12px 4px 6px"}},"\u2014 Martin \u2014 Job Plan"),
+React.createElement(SummaryTable,{people:mArr,baselineAL:bl,showJobPlan:true,showHalfLD:true})),
+tab==="cover"&&React.createElement(CoverGrid,{people508:p508,people822:p822wc}),
+tab==="config"&&React.createElement(ConfigPanel,{people:p508,onUpdate:hcu,martinConfig:mc,
+onMartinUpdate:hmcu,baselineAL:bl,onBLChange:setBl})),
+React.createElement("div",{style:{position:"fixed",bottom:0,left:0,right:0,backgroundColor:"#fff",
+borderTop:"1px solid #e2e8f0",padding:"6px 12px",display:"flex",justifyContent:"center",gap:8}},
+[["N","Night"],["LD","Long Day"],["HLD","\u00bdLD"],["D","Day"]].map(([c,l])=>
+React.createElement("div",{key:c,style:{display:"flex",alignItems:"center",gap:3}},
+React.createElement("div",{style:{width:14,height:14,borderRadius:3,...shiftColor(c)}}),
+React.createElement("span",{style:{fontSize:9,color:"#64748b",fontWeight:500}},l)))));
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
